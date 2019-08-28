@@ -152,8 +152,8 @@ session_support=NO
 ### Reload and Start Very Secure FTP Services
 
 ```bash
-/etc/init.d/vsfptd reload
-/etc/init.d/vsfptd start
+/etc/init.d/vsftpd reload
+/etc/init.d/vsftpd start
 ```
 
 ## Install wget
@@ -176,4 +176,16 @@ Note: use **git:** rather than **https:** transport
 
 ```bash
 git clone --depth 1 git://github.com/gloveboxes/PyCon-Hands-on-Lab.git
+```
+
+## Python3
+
+```bash
+python3 -m pip install ...
+```
+
+### CPU Temperature
+
+```bash
+cat /sys/class/thermal/thermal_zone0/temp 
 ```
