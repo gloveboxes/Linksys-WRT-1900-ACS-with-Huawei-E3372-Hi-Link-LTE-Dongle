@@ -24,8 +24,8 @@ Install:
 
 I like luci-theme-material
 
-```
-opkg update && opkg install luci-theme-material mosquitto-nossl kmod-usb-net-cdc-ether usb-modeswitch
+```bash
+opkg update && opkg install luci-theme-material mosquitto-nossl kmod-usb-net-cdc-ether usb-modeswitch nano git
 
 ```
 
@@ -64,17 +64,19 @@ Network -> Interfaces -> Dongle -> Advanced Settings
 1. Ensure dongle is activated with the SIM Carrier
 2. On Dongle Teal light will glow solidly (no blink)
 3. You may need to disconnect Internet/Broadband connection and reboot
-4. Try Restarting the Dongle Interface
+4. Try **Stopping** and **Connecting** the Dongle Interface
 5. Eventually Dongle will provide a DHCP address to the router
 
     Similar to the following:
 
-        Protocol: DHCP client
-        Uptime: 0h 15m 11s
-        MAC: 0C:5B:8F:27:9A:64
-        RX: 28.90 MB (21750 Pkts.)
-        TX: 1.22 MB (11751 Pkts.)
-        IPv4: 192.168.8.100/24
+    ```text
+    Protocol: DHCP client
+    Uptime: 0h 15m 11s
+    MAC: 0C:5B:8F:27:9A:64
+    RX: 28.90 MB (21750 Pkts.)
+    TX: 1.22 MB (11751 Pkts.)
+    IPv4: 192.168.8.100/24
+    ```
 
 ## Admin Interface for the Huawei E3372 Hi-Link LTE Dongle
 
@@ -85,3 +87,93 @@ Network -> Interfaces -> Dongle -> Advanced Settings
 1. From Dongle Admin interface, select SMS
 2. Text 1 to 9999
 3. Review information in the reply
+
+## Auto Mounting a USB Flash Drive
+
+[Quick Start for Adding a USB drive](https://openwrt.org/docs/guide-user/storage/usb-drives-quickstart)
+
+[Using storage devices](https://openwrt.org/docs/guide-user/storage/usb-drives)
+
+```bash
+opkg update && opkg install e2fsprogs kmod-usb-storage kmod-usb2 kmod-usb3 kmod-usb-storage-uas usbutils gdisk block-mount f2fs-tools kmod-fs-f2fs
+```
+
+## Very Secure FTP Server (vsftpd) with Anonymous Access
+
+[Very Secure FTP Server](https://openwrt.org/docs/guide-user/services/nas/ftp.overview)
+
+Install:
+
+```bash
+opkg update && opkg install vsftpd
+```
+
+nano ***/etc/vsftpd.conf***
+
+replace existing contents with thg following
+
+```text
+background=YES
+listen=YES
+anonymous_enable=YES
+ftp_username=nobody
+anon_root=/mnt/sda1/lab
+no_anon_password=YES
+local_enable=NO
+write_enable=NO
+local_umask=022
+check_shell=NO
+dirmessage_enable=YES
+ftpd_banner=Welcome to Glovebox FTP service.
+session_support=NO
+#syslog_enable=YES
+#userlist_enable=YES
+#userlist_deny=NO
+#userlist_file=/etc/vsftpd/vsftpd.users
+#xferlog_enable=YES
+#xferlog_file=/var/log/vsftpd.log
+#xferlog_std_format=YES
+###
+### TLS/SSL options
+### example key generation: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/vsftpd/vsftpd_privkey.pem -out /etc/vsftpd/vsftpd_cert.pem -subj >
+#ssl_enable=YES
+#allow_anon_ssl=NO
+#force_local_data_ssl=NO
+#force_local_logins_ssl=NO
+#ssl_tlsv1=YES
+#ssl_sslv2=NO
+#ssl_sslv3=NO
+#rsa_cert_file=/etc/vsftpd/vsftpd_cert.pem
+#rsa_private_key_file=/etc/vsftpd/vsftpd_privkey.pem
+
+#local_root=/mnt/sda1/lab
+```
+
+### Reload and Start Very Secure FTP Services
+
+```bash
+/etc/init.d/vsfptd reload
+/etc/init.d/vsfptd start
+```
+
+## Install wget
+
+```bash
+opkg update && opkg install wget libustream-openssl ca-bundle ca-certificates
+```
+
+### wget Visual Studio Code Insider Builds
+
+```bash
+wget https://go.microsoft.com/fwlink/?LinkID=760865  # .deb64
+wget https://go.microsoft.com/fwlink/?LinkId=723966  # macOS
+wget https://aka.ms/win32-x64-user-insider           # Windows 64
+```
+
+## GitHub
+
+Note: use **git:** rather than **https:** transport
+
+```bash
+git clone --depth 1 git://github.com/gloveboxes/PyCon-Hands-on-Lab.git
+```
