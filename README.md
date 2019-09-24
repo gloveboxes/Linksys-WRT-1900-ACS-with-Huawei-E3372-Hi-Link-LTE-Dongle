@@ -121,7 +121,7 @@ Risk-adverse users may wish to create a custom image (as described in the pervio
 
 Connect with ssh to the device.
 
-Configure `/etc/config/fstab` to mount the `rootfs_data` in another directory in case you need to access the original root overlay to change your extroot settings:
+Configure `/etc/config/fstab` to mount the `rootfs_data` in another directory in case you need to access the original root overlay to change your extroot settings. Run the following commands:
 
 ```bash
 DEVICE="$(awk -e '/\s\/overlay\s/{print $1}' /etc/mtab)"
@@ -213,260 +213,7 @@ Filesystem           1K-blocks      Used Available Use% Mounted on
 overlayfs:/overlay     7759872    477328   7221104   6% /
 ```
 
-## Auto Mounting a USB Flash Drive for Very Secure FTP Daemon (vsFTPD)
 
-This guide assumes you created two partictions on the USB Flash drive.
-
-[Using storage devices](https://openwrt.org/docs/guide-user/storage/usb-drives)
-
-Packages installed for USB 3 Flash support.
-
-```bash
-opkg update && opkg install e2fsprogs kmod-usb-storage kmod-usb2 kmod-usb3 kmod-usb-storage-uas usbutils gdisk block-mount f2fs-tools kmod-fs-f2fs
-```
-
-To configure external disk space, follow the procedures of this page:
-
-1. Verify storage drivers
-2. Verify that the OS recognizes the attached disk and its partitions
-3. Create a partition on the USB disk
-4. Create a file system in the partition
-5. Automount the partition
-6. Idle spin down of hard disks
-
-### Install and verify USB drivers
-
-This step ensures that required USB storage drivers are properly installed.
-
-1. Start by refreshing the list of available software packages:
-
-    ```bash
-    opkg update
-    ```
-
-2. The typical OpenWrt package already has core USB device drivers installed (if your device has USB ports at all), but might not yet have an USB storage device driver installed. Install this storage driver first (if it is already installed, the following command will just say “is already installed”: 
-
-    ```bash
-    opkg install kmod-usb-storage
-    ```
-
-3. Some USB storage devices may require the UAS driver: 
-
-    ```bash
-    opkg install kmod-usb-storage-uas
-    ```
-
-4. To check, if the whole USB driver chain is working correctly, install the optional **usbutils** package:
-
-    ```bash
-    opkg install usbutils
-    ```
-
-5. Now connect your USB disk/stick and list your connected devices with a command from these **usbutils**: 
-
-    ```bash
-    lsusb -t
-    ```
-
-6. This will output a list of device USB hub ports and connected external storage devices:
-
-    ```bash
-    /:  Bus 03.Port 1: Dev 1, Class=root_hub, Driver=xhci-hcd/1p, 5000M
-        |__ Port 1: Dev 2, If 0, Class=Mass Storage, Driver=usb-storage, 5000M
-    /:  Bus 02.Port 1: Dev 1, Class=root_hub, Driver=xhci-hcd/1p, 480M
-    /:  Bus 01.Port 1: Dev 1, Class=root_hub, Driver=orion-ehci/1p, 480M
-    ```
-
-- “Bus…”-Lines represent the host chip. Here, the “Driver” will be xhci“ for USB3.0, “ehci” for USB2.0 and “uhci” or “ohci” for USB1.1.
-- Lines with “Class=Mass Storage” represent connected USB devices. Here the “Driver” is either “usb-storage” for storage of type [Bulk only Transport](https://en.wikipedia.org/wiki/USB_mass_storage_device_class "https://en.wikipedia.org/wiki/USB_mass_storage_device_class") or “usb-storage-uas” for storage of type [USB_Attached_SCSI](https://en.wikipedia.org/wiki/USB_Attached_SCSI "https://en.wikipedia.org/wiki/USB_Attached_SCSI")
-
-In step 4, verify that the output prints no error and has at least one output line for **root_hub** and **Mass Storage** and that each **Driver=** lists a driver name. If not, then refer to [the Installing USB Drivers](https://openwrt.org/docs/guide-user/storage/usb-installing "docs:guide-user:storage:usb-installing") for more suggestions on drivers.
-
-### Verify that the OS recognizes the attached disk and partitions
-
-This optional verification step can be used, to check that the OS can properly detect a connected external drive.
-
-1. Ensure your USB disk/stick is stick connected
-2. Run in a command line:
-
-    ```bash
-    ls -l /dev/sd*
-    ```
-
-3. This should now show a list of block devices known to the 
-
-    <abbr title="Operating System">OS</abbr>
-
-    ```bash
-    brw-------    1 root     root        8,   0 Oct 30 12:49 /dev/sda
-    brw-------    1 root     root        8,   1 Oct 30 12:49 /dev/sda1
-    brw-------    1 root     root        8,   1 Oct 30 12:49 /dev/sda2
-    ```
-
-    This should print at least a connected disk like ”/dev/sda“ or ”/dev/sdb“. If no disk at all is listed, recheck USB driver installation and reboot your OpenWrt device once.
-
-4. Install the **block** tool to get more info about existing partitions
-
-    ```bash
-    opkg install block-mount
-    ```
-
-5. Run the **block** tool:
-
-    ```bash
-    block info | grep "/dev/sd"
-    ```
-
-    and you should see output like this, if your disk already has partitions:
-
-    ```bash
-    /dev/sda1: UUID="7feefc8c-badd-4aa3-bf66-a2b1a9a2a586" VERSION="1.0" MOUNT="/overlay" TYPE="ext4"
-    /dev/sda2: UUID="7d63798d-8d70-42c1-9a03-bced4013ed07" VERSION="1.10" MOUNT="/mnt/sda2" TYPE="f2fs"
-    ```
-
-If a disk already has existing partitions, they get listed as **/dev/sda1**, **/dev/sda2**, **/dev/sda3** and so on.
-
-If we had connected more than one storage device we would have also a **/dev/sdb1** (first partition of second device), **/dev/sdc1** (first partition of third device) and so on.
-
-## Create a partition on the USB disk
-
-if the previous chapter did not list any existing partitions (like ”/dev/sda1“, ”/dev/sda2“, ”/dev/sdb1“…), you have to create a partition first for further storage usage.
-
-1. To do so, install **gdisk**:
-
-    ```bash
-    opkg install gdisk
-    ```
-
-2. Start **gdisk** with the disk name identified in the previous chapter:
-
-    Given two partitions created this will like be /dev/sda2.
-
-    ```bash
-    gdisk /dev/sda2
-    ```
-
-3. In the interactive gdisk menu, create a partition with gdisk command 
-
-    ```bash
-    n
-    ```
-
-    This triggers an interactive dialogue: Use the suggested defaults for the partition creation (number, starting sector, size, Hex code)
-
-4. When done, confirm the changes with gdisk interactive command 
-
-    ```bash
-    w
-    ```
-
-    and then confirm your choice with 
-
-    ```bash
-    Y
-    ```
-
-5. Keep a note of the created partition name for the next step
-
-Refer to the gdisk help text (write ”?“) in case you need additional help. Stick to a single partition, to stay aligned to the following HowTo.
-
-### Install file system drivers and create a file system in the partition
-
-To use a partition for data storage, it needs to be formatted with a file system.
-
-The following is the most simplest (and recommended) default configuration for OpenWrt file system usage.  
-For advanced users, there are [further optional file system options available](https://openwrt.org/docs/guide-user/storage/filesystems-and-partitions "docs:guide-user:storage:filesystems-and-partitions").
-
-**WARNING: This step deletes existing data in that partition. Ensure you have a backup of important files before starting!**
-
-- For SSD drives and thumb drives,  install F2FS file system and use F2FS to format the partition (in this example '/dev/sda1'): 
-
-    ```bash
-    opkg install f2fs-tools
-    opkg install kmod-fs-f2fs
-    mkfs.f2fs /dev/sda1
-    ```
-
-- For USB hard disks, install EXT4 file system and use EXT4 to format the partition (in this example '/dev/sda1'):
-
-    ```bash
-    opkg install e2fsprogs
-    opkg install kmod-fs-ext4
-    mkfs.ext4 /dev/sda1
-    ```
-
-### Automount the partition
-
-Automount ensures that the external disk partition is automatically made available for usage when booting the OpenWrt device
-
-1. Generate a config entry for the fstab file:
-
-    ```bash
-    block detect | uci import fstab
-    ```
-
-2. Now enable automount on that config entry:
-
-    ```bash
-    uci set fstab.@mount[-1].enabled='1'
-    uci commit fstab
-    ```
-
-3. Optionally enable autocheck of the file system each time the OpenWrt device powers up:
-
-    ```bash
-    uci set fstab.@global[0].check_fs='1'
-    uci commit fstab
-    ```
-
-4. Reboot your OpenWrt device (to verify that automount works)
-5. After the reboot, check your results: Run 
-
-    ```bash
-    uci show fstab
-    ```
-
-    to see something like this
-
-    ```bash
-    fstab.@global[0]=global
-    fstab.@global[0].anon_swap='0'
-    fstab.@global[0].anon_mount='0'
-    fstab.@global[0].auto_swap='1'
-    fstab.@global[0].auto_mount='1'
-    fstab.@global[0].check_fs='0'
-    fstab.@global[0].delay_root='5'
-    fstab.@mount[0]=mount
-    fstab.@mount[0].target='/mnt/sda1'
-    fstab.@mount[0].uuid='49c35b1f-a503-45b1-a953-56707bb84968'
-    fstab.@mount[0].enabled='1'
-    ```
-
-6. Check the “enabled” entry. It should be '1'.
-7. Note the “target” entry. This is the file path, where your attached USB storage drive can be accessed from now on. E.g. you can now list files from your external disk:
-
-    ```bash
-    ls -l /mnt/sda2
-    ```
-
-8. Run the following command, to verify that the disk is properly mounted at this path
-
-    ```bash
-    block info
-    ```
-
-    The result will be:
-
-    ```bash
-    ...
-    /dev/sda1: UUID="2eb39413-83a4-4bae-b148-34fb03a94e89" VERSION="1.0" MOUNT="/mnt/sda1" TYPE="ext4"
-    ```
-
-9. Your external storage is now ready for further usage:
-
-    ```bash
-    service fstab boot
-    ```
 
 ## Install Very Secure FTP Server (vsftpd) with Anonymous Access
 
@@ -478,11 +225,12 @@ Install:
 
 ```bash
 opkg update && opkg install vsftpd
+mkdir /ftp
 ```
 
 nano ***/etc/vsftpd.conf***
 
-Config assumes storage is located at **/mnt/sda2**
+Config assumes ftp directory is located at **/ftp**
 
 replace existing contents with thg following
 
@@ -491,7 +239,7 @@ background=YES
 listen=YES
 anonymous_enable=YES
 ftp_username=nobody
-anon_root=/mnt/sda2/lab
+anon_root=/ftp
 no_anon_password=YES
 local_enable=NO
 write_enable=NO
@@ -520,7 +268,7 @@ session_support=NO
 #rsa_cert_file=/etc/vsftpd/vsftpd_cert.pem
 #rsa_private_key_file=/etc/vsftpd/vsftpd_privkey.pem
 
-#local_root=/mnt/sda2/lab
+
 ```
 
 ### Reload and Start Very Secure FTP Services
@@ -536,20 +284,12 @@ session_support=NO
 opkg update && opkg install wget libustream-openssl ca-bundle ca-certificates
 ```
 
-### wget Visual Studio Code Insider Builds
-
-```bash
-wget https://go.microsoft.com/fwlink/?LinkID=760865  # .deb64
-wget https://go.microsoft.com/fwlink/?LinkId=723966  # macOS
-wget https://aka.ms/win32-x64-user-insider           # Windows 64
-```
-
 ## GitHub
 
 Note: use **git:** rather than **https:** transport
 
 ```bash
-git clone --depth 1 git://github.com/gloveboxes/PyCon-Hands-on-Lab.git
+git clone --depth 1 git://github.com/gloveboxes/PyLab-0-Raspberry-Pi-Set-Up
 ```
 
 ## Python3 and Pip Usage
