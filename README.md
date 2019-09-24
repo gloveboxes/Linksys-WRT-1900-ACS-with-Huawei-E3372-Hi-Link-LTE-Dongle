@@ -179,7 +179,7 @@ If you have a swap partition it will also get recognized and added automatically
 We now transfer the content of the current overlay inside the external drive:
 
 ```bash
-mount/dev/sda1 /mnt
+mount /dev/sda1 /mnt
 cp -a -f /overlay/. /mnt
 umount /mnt
 ```
